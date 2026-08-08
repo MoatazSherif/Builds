@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html lang="en-us">
+  <head>
+    <meta charset="utf-8" />
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, height=device-height, initial-scale=1.0, user-scalable=no, shrink-to-fit=yes"
+    />
+    <title>JUMP MAN</title>
+    <style>
+      body,
+      html {
+        margin: 0;
+        padding: 0;
+        overflow: hidden;
+        /* Prevent scrolling */
+        width: 100%;
+        height: 100%;
+      }
+
+      #unity-container {
+        position: absolute;
+        /* These Should be 100% */
+        width: 100%;
+        height: 100%;
+      }
+
+      #unity-canvas {
+        width: 100%;
+        height: 100%;
+        background-size: cover;
+        background-repeat: no-repeat;
+      }
+
+      #pause-btn {
+        margin: 0;
+        position: relative;
+        left: 50%;
+      }
+    </style>
+  </head>
+
+  <body>
+    <div id="unity-container">
+      <canvas id="unity-canvas"></canvas>
+    </div>
+    <div></div>
+    <script src="Build/JUMP WEBGL.loader.js"></script>
+    <script>
+      var startTime = new Date().getTime();
+      InitializeLoadingEvent();
+      const canvas = document.querySelector("#unity-canvas");
+      const config = {
+        dataUrl: "Build/JUMP WEBGL.data",
+        frameworkUrl: "Build/JUMP WEBGL.framework.js",
+        codeUrl: "Build/JUMP WEBGL.wasm",
+        streamingAssetsUrl: "StreamingAssets",
+        companyName: "Digitalpen",
+        productName: "JUMP",
+        productVersion: "0.12",
+        // matchWebGLToCanvasSize: false, // Uncomment this to separately control WebGL canvas render size and DOM element size.
+        // devicePixelRatio: 1, // Uncomment this to override low DPI rendering on high DPI displays.
+      };
+      var MyGameInstance = null;
+      var MaxProgress = -1;
+      createUnityInstance(canvas, config, (progress) => {
+        if (progress > MaxProgress) {
+          MaxProgress = progress;
+          BroadcastGameLoadingEvent(progress);
+        }
+      }).then((unityInstance) => {
+        MyGameInstance = unityInstance; // <-- this
+        //Splash Screen Shows Here
+        CalculateLoadTime(startTime);
+
+        //Comment the next line to Fully Integrate Native
+        //doStartTest();
+        console.log(MyGameInstance);
+      });
+
+      //Loading Container Functions
+      function InitializeLoadingEvent() {
+        addEventListener("onGameLoading", (e) => {
+          try {
+            if (
+              window.webkit &&
+              window.webkit.messageHandlers &&
+              window.webkit.messageHandlers.onGameLoading
+            ) {
+              console.log("IOS Interceptor:: onGameLoading");
+              window.webkit.messageHandlers.onGameLoading.postMessage(e.detail);
+            } else if (BarraqAndroidBridge != undefined) {
+              console.log("BarraqAndroidBridge:: onGameLoading");
+              BarraqAndroidBridge.onGameLoading(JSON.stringify(e.detail));
+            } else {
+              console.log("non-native environment:: onGameLoading");
+            }
+          } catch (err) {
+            console.warn("error while trying to run nativley - ", err.message);
+            console.log("non-native environment::onGameLoading");
+          }
+        });
+      }
+      function BroadcastGameLoadingEvent(progress) {
+        console.log(
+          "HTML -> Native  onGameLoading Event, Progress = " + progress
+        );
+        const event = new CustomEvent("onGameLoading", {
+          detail: {
+            message: "Game Load Percentage: " + progress,
+            data: {
+              load_progress: progress,
+            },
+          },
+        });
+        dispatchEvent(event);
+      }
+      function CalculateLoadTime(bootTimestamp) {
+        var loadedTimestamp = new Date().getTime();
+        //console.log("Timestamps : ", bootTimestamp ,loadedTimestamp );
+        var difference = loadedTimestamp - bootTimestamp;
+
+        var minutes = parseInt(difference / 1000 / 60);
+        var seconds = parseInt((difference / 1000) % 60);
+        console.log(
+          "Game Loadtime = " + difference + " ms",
+          "which is equlivlent to " + minutes + ":" + seconds + " minutes"
+        );
+      }
+      //Input Functions
+      function doInitiate(encodedData) {
+        //Expected Encoded
+        console.log("Calling DoInitiate From Native");
+        if (MyGameInstance) {
+          MyGameInstance.SendMessage("JS", "DoInitiate", encodedData);
+        }
+      }
+      function doClose() {
+        if (MyGameInstance) {
+          MyGameInstance.SendMessage("JS", "DoQuit");
+        }
+      }
+
+      function doPause() {
+        if (MyGameInstance) {
+          MyGameInstance.SendMessage("JS", "DoPause");
+        }
+      }
+      function doResume() {
+        if (MyGameInstance) {
+          MyGameInstance.SendMessage("JS", "DoResume");
+        }
+      }
+      function doConnectionLost() {
+        if (MyGameInstance) {
+          MyGameInstance.SendMessage("JS", "DoConnectionLost");
+        }
+      }
+      function doConnectionRegained() {
+        if (MyGameInstance) {
+          MyGameInstance.SendMessage("JS", "DoConnectionRegained");
+        }
+      }
+      function doExitGame() {
+        if (MyGameInstance) {
+          MyGameInstance.SendMessage("JS", "DoExitGame");
+        }
+      }
+      function doStartTest() {
+        var encodedData =
+          "ewogICJnYW1lX2RhdGEiOiB7CiAgICAiZ2FtZV90eXBlIjogIkZFQVRVUkVEIiwKICAgICJnYW1lX2NvbnRyb2xfc3lzdGVtX3R5cGUiOiAiSlVNUCIsCiAgICAiZ2FtZV9jb250cm9sX3N5c3RlbSI6IHsKICAgICAgIm1heF9yZXdhcmRfZmFpbF9zYWZlIjogMTUwLAogICAgICAicmVjb25uZWN0aW9uX3dpbmRvd19zZWNvbmRzIjogMTAsCiAgICAgICJyZXN1bXB0aW9uX3dpbmRvd19zZWNvbmRzIjogNjAsCiAgICAgICJiYXNlX2RpZmZpY3VsdHkiOiAxLAogICAgICAicGxhdGZvcm1zX3Blcl9waGFzZSI6IDIsCiAgICAgICJwaGFzZXMiOiBbCiAgICAgICAgewogICAgICAgICAgImRpZmZpY3VsdHlfc3RlcCI6IDEsCiAgICAgICAgICAicGxhdGZvcm1fZHJvcF90aW1lX3NlY29uZHMiOiAxNSwKICAgICAgICAgICJwbGF0Zm9ybV9sYW5kaW5nX3Jld2FyZCI6IDAuMgogICAgICAgIH0sCiAgICAgICAgewogICAgICAgICAgImRpZmZpY3VsdHlfc3RlcCI6IDIsCiAgICAgICAgICAicGxhdGZvcm1fZHJvcF90aW1lX3NlY29uZHMiOiAxMCwKICAgICAgICAgICJwbGF0Zm9ybV9sYW5kaW5nX3Jld2FyZCI6IDAuNQogICAgICAgIH0sCiAgICAgICAgewogICAgICAgICAgImRpZmZpY3VsdHlfc3RlcCI6IDMsCiAgICAgICAgICAicGxhdGZvcm1fZHJvcF90aW1lX3NlY29uZHMiOiAxMiwKICAgICAgICAgICJwbGF0Zm9ybV9sYW5kaW5nX3Jld2FyZCI6IDAuNzUKICAgICAgICB9LAogICAgICAgIHsKICAgICAgICAgICJkaWZmaWN1bHR5X3N0ZXAiOjQsCiAgICAgICAgICAicGxhdGZvcm1fZHJvcF90aW1lX3NlY29uZHMiOiA4LAogICAgICAgICAgInBsYXRmb3JtX2xhbmRpbmdfcmV3YXJkIjogMQogICAgICAgIH0sCiAgICAgICAgewogICAgICAgICAgImRpZmZpY3VsdHlfc3RlcCI6IDUsCiAgICAgICAgICAicGxhdGZvcm1fZHJvcF90aW1lX3NlY29uZHMiOiA1LAogICAgICAgICAgInBsYXRmb3JtX2xhbmRpbmdfcmV3YXJkIjogMS4yNQogICAgICAgIH0KICAgICAgXQogICAgfQogIH0sCiAgInVzZXJfZGF0YSI6IHsKICAgICJ1c2VyX3Byb3BlcnRpZXMiOiB7CiAgICAgICJoaWdoZXN0X3dpbm5pbmdfYW1vdW50IjogMTAsCiAgICAgICJhdHRlbXB0X3R5cGUiOiAiUkVBTCIKICAgIH0KICB9Cn0=";
+        if (MyGameInstance) {
+          MyGameInstance.SendMessage("JS", "DoInitiate", encodedData);
+        }
+      }
+    </script>
+  </body>
+  <!-- Latest Version As Of 09/10/2024. -->
+</html>

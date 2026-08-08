@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="en-us">
+  <head>
+    <meta charset="utf-8" />
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, height=device-height, initial-scale=1.0, user-scalable=no, shrink-to-fit=yes"
+    />
+    <title>BUKBUK</title>
+    <style>
+      html,
+      body {
+        margin: 0;
+        padding: 0;
+        width: 100%;
+        height: 100%;
+        overflow: hidden;
+      }
+
+      #unity-container {
+        position: absolute;
+        width: 100%;
+        height: 100%;
+      }
+
+      #unity-canvas {
+        width: 100%;
+        height: 100%;
+        background-image: url("Build/BukBuk.jpg");
+        background-size: cover;
+        background-repeat: no-repeat;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="unity-container">
+      <canvas id="unity-canvas"></canvas>
+    </div>
+
+    <script src="Build/BukBuk.loader.js"></script>
+    <script>
+      var startTime = new Date().getTime();
+      var MyGameInstance = null;
+      var maxProgress = -1;
+      var canvas = document.querySelector("#unity-canvas");
+
+      initializeLoadingEvent();
+
+      var config = {
+        dataUrl: "Build/BukBuk.data",
+        frameworkUrl: "Build/BukBuk.framework.js",
+        codeUrl: "Build/BukBuk.wasm",
+        streamingAssetsUrl: "StreamingAssets",
+        companyName: "DigitalPen",
+        productName: "BUK",
+        productVersion: "1.4",
+      };
+
+      createUnityInstance(canvas, config, function (progress) {
+        if (progress > maxProgress) {
+          maxProgress = progress;
+          broadcastGameLoadingEvent(progress);
+        }
+      }).then(function (unityInstance) {
+        MyGameInstance = unityInstance;
+        calculateLoadTime(startTime);
+      });
+
+      function initializeLoadingEvent() {
+        addEventListener("onGameLoading", function (e) {
+          try {
+            if (
+              window.webkit &&
+              window.webkit.messageHandlers &&
+              window.webkit.messageHandlers.onGameLoading
+            ) {
+              window.webkit.messageHandlers.onGameLoading.postMessage(e.detail);
+            } else if (typeof BarraqAndroidBridge !== "undefined") {
+              BarraqAndroidBridge.onGameLoading(JSON.stringify(e.detail));
+            } else {
+              console.log("non-native environment:: onGameLoading");
+            }
+          } catch (err) {
+            console.warn("error while trying to run natively - ", err.message);
+          }
+        });
+      }
+
+      function broadcastGameLoadingEvent(progress) {
+        var event = new CustomEvent("onGameLoading", {
+          detail: {
+            message: "Game Load Percentage: " + progress,
+            data: {
+              load_progress: progress,
+            },
+          },
+        });
+        dispatchEvent(event);
+      }
+
+      function calculateLoadTime(bootTimestamp) {
+        var loadedTimestamp = new Date().getTime();
+        var difference = loadedTimestamp - bootTimestamp;
+        var minutes = parseInt(difference / 1000 / 60, 10);
+        var seconds = parseInt((difference / 1000) % 60, 10);
+        console.log(
+          "Game Loadtime = " +
+            difference +
+            " ms, equivalent to " +
+            minutes +
+            ":" +
+            seconds
+        );
+      }
+
+      function doInitiate(encodedData) {
+        if (MyGameInstance) {
+          MyGameInstance.SendMessage("JS", "DoInitiate", encodedData);
+        }
+      }
+
+      function doClose() {
+        if (MyGameInstance) {
+          MyGameInstance.SendMessage("JS", "DoQuit");
+        }
+      }
+
+      function doPause() {
+        if (MyGameInstance) {
+          MyGameInstance.SendMessage("JS", "DoPause");
+        }
+      }
+
+      function doResume() {
+        if (MyGameInstance) {
+          MyGameInstance.SendMessage("JS", "DoResume");
+        }
+      }
+
+      function doConnectionRetry() {
+        if (MyGameInstance) {
+          MyGameInstance.SendMessage("JS", "DoConnectionRetry");
+        }
+      }
+
+      function doConnectionLost() {
+        if (MyGameInstance) {
+          MyGameInstance.SendMessage("JS", "DoConnectionLost");
+        }
+      }
+      function doConnectionRegained() {
+        if (MyGameInstance) {
+          MyGameInstance.SendMessage("JS", "DoConnectionRegained");
+        }
+      }
+      function doStartTest() {
+        var encodedData =
+          "ewogICJnYW1lX2RhdGEiOiB7CiAgICAiZ2FtZV90eXBlIjogIkZFQVRVUkVEIiwKICAgICJnYW1lX2NvbnRyb2xfc3lzdGVtX3R5cGUiOiAiQlVLIiwKICAgICJnYW1lX2NvbnRyb2xfc3lzdGVtIjogewogICAgICAicGhhc2VzIjogWwogICAgICAgIHsKICAgICAgICAgICJyZXdhcmRfcGF5bG9hZCI6IDUsCiAgICAgICAgICAicm9ja19zcGVlZCI6IDUsCiAgICAgICAgICAicm9ja19zcGF3bl9yYXRlIjogMC43NSwKICAgICAgICAgICJjb2luX3NwYXduX3JhdGUiOiBbCiAgICAgICAgICAgIDAuNiwKICAgICAgICAgICAgMC4zLAogICAgICAgICAgICAwLjEKICAgICAgICAgIF0KICAgICAgICB9LAogICAgICAgIHsKICAgICAgICAgICJyZXdhcmRfcGF5bG9hZCI6IDcsCiAgICAgICAgICAicm9ja19zcGVlZCI6IDcsCiAgICAgICAgICAicm9ja19zcGF3bl9yYXRlIjogMC43LAogICAgICAgICAgImNvaW5fc3Bhd25fcmF0ZSI6IFsKICAgICAgICAgICAgMC41LAogICAgICAgICAgICAwLjM1LAogICAgICAgICAgICAwLjE1CiAgICAgICAgICBdCiAgICAgICAgfSwKICAgICAgICB7CiAgICAgICAgICAicmV3YXJkX3BheWxvYWQiOiA5LAogICAgICAgICAgInJvY2tfc3BlZWQiOiA5LAogICAgICAgICAgInJvY2tfc3Bhd25fcmF0ZSI6IDAuNjUsCiAgICAgICAgICAiY29pbl9zcGF3bl9yYXRlIjogWwogICAgICAgICAgICAwLjQsCiAgICAgICAgICAgIDAuNCwKICAgICAgICAgICAgMC4yCiAgICAgICAgICBdCiAgICAgICAgfSwKICAgICAgICB7CiAgICAgICAgICAicmV3YXJkX3BheWxvYWQiOiAxMSwKICAgICAgICAgICJyb2NrX3NwZWVkIjogMTEsCiAgICAgICAgICAicm9ja19zcGF3bl9yYXRlIjogMC42LAogICAgICAgICAgImNvaW5fc3Bhd25fcmF0ZSI6IFsKICAgICAgICAgICAgMC40LAogICAgICAgICAgICAwLjM1LAogICAgICAgICAgICAwLjI1CiAgICAgICAgICBdCiAgICAgICAgfSwKICAgICAgICB7CiAgICAgICAgICAicmV3YXJkX3BheWxvYWQiOiAxMywKICAgICAgICAgICJyb2NrX3NwZWVkIjogMTMsCiAgICAgICAgICAicm9ja19zcGF3bl9yYXRlIjogMC40LAogICAgICAgICAgImNvaW5fc3Bhd25fcmF0ZSI6IFsKICAgICAgICAgICAgMC40LAogICAgICAgICAgICAwLjM1LAogICAgICAgICAgICAwLjI1CiAgICAgICAgICBdCiAgICAgICAgfSwKICAgICAgICB7CiAgICAgICAgICAicmV3YXJkX3BheWxvYWQiOiAxNSwKICAgICAgICAgICJyb2NrX3NwZWVkIjogMTYsCiAgICAgICAgICAicm9ja19zcGF3bl9yYXRlIjogMC4zLAogICAgICAgICAgImNvaW5fc3Bhd25fcmF0ZSI6IFsKICAgICAgICAgICAgMC40LAogICAgICAgICAgICAwLjM1LAogICAgICAgICAgICAwLjI1CiAgICAgICAgICBdCiAgICAgICAgfSwKICAgICAgICB7CiAgICAgICAgICAicmV3YXJkX3BheWxvYWQiOiAxNywKICAgICAgICAgICJyb2NrX3NwZWVkIjogMTksCiAgICAgICAgICAicm9ja19zcGF3bl9yYXRlIjogMC4yLAogICAgICAgICAgImNvaW5fc3Bhd25fcmF0ZSI6IFsKICAgICAgICAgICAgMC40LAogICAgICAgICAgICAwLjM1LAogICAgICAgICAgICAwLjI1CiAgICAgICAgICBdCiAgICAgICAgfSwKICAgICAgICB7CiAgICAgICAgICAicmV3YXJkX3BheWxvYWQiOiA1LAogICAgICAgICAgInJvY2tfc3BlZWQiOiAyMCwKICAgICAgICAgICJyb2NrX3NwYXduX3JhdGUiOiAwLjEsCiAgICAgICAgICAiY29pbl9zcGF3bl9yYXRlIjogWwogICAgICAgICAgICAwLjQsCiAgICAgICAgICAgIDAuMzUsCiAgICAgICAgICAgIDAuMjUKICAgICAgICAgIF0KICAgICAgICB9LAogICAgICAgIHsKICAgICAgICAgICJyZXdhcmRfcGF5bG9hZCI6IDUsCiAgICAgICAgICAicm9ja19zcGVlZCI6IDIwLAogICAgICAgICAgInJvY2tfc3Bhd25fcmF0ZSI6IDAuMSwKICAgICAgICAgICJjb2luX3NwYXduX3JhdGUiOiBbCiAgICAgICAgICAgIDAuNCwKICAgICAgICAgICAgMC4zNSwKICAgICAgICAgICAgMC4yNQogICAgICAgICAgXQogICAgICAgIH0sCiAgICAgICAgewogICAgICAgICAgInJld2FyZF9wYXlsb2FkIjogNSwKICAgICAgICAgICJyb2NrX3NwZWVkIjogMjAsCiAgICAgICAgICAicm9ja19zcGF3bl9yYXRlIjogMC4xLAogICAgICAgICAgImNvaW5fc3Bhd25fcmF0ZSI6IFsKICAgICAgICAgICAgMC40LAogICAgICAgICAgICAwLjM1LAogICAgICAgICAgICAwLjI1CiAgICAgICAgICBdCiAgICAgICAgfQogICAgICBdLAogICAgICAiY29pbl92YWx1ZXMiOiB7CiAgICAgICAgInJhdGVzIjogWwogICAgICAgICAgMC4xLAogICAgICAgICAgMC4yLAogICAgICAgICAgMC4zCiAgICAgICAgXQogICAgICB9LAogICAgICAibWF4X3Jld2FyZF9mYWlsX3NhZmUiOiAxMDAsCiAgICAgICJ0aW1lX2ludGVydmFsIjogMzAsCiAgICAgICJoZWFydF9zcGF3bl9yYXRlIjogMzEsCiAgICAgICJyZWNvbm5lY3Rpb25fd2luZG93X3NlY29uZHMiOiA2MCwKICAgICAgInJlc3VtcHRpb25fd2luZG93X3NlY29uZHMiOiA2MAogICAgfQogIH0sCiAgInVzZXJfZGF0YSI6IHsKICAgICJ1c2VyX3Byb3BlcnRpZXMiOiB7CiAgICAgICJoaWdoZXN0X3dpbm5pbmdfYW1vdW50IjogMTAsCiAgICAgICJhdHRlbXB0X3R5cGUiOiAiUkVBTCIKICAgIH0KICB9Cn0=";
+        if (MyGameInstance) {
+          MyGameInstance.SendMessage("JS", "DoInitiate", encodedData);
+        }
+      }
+    </script>
+  </body>
+</html>
