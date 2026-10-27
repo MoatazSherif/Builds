@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="en-us">
+  <head>
+    <meta charset="utf-8" />
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <title>Riyadh Air</title>
+  </head>
+  <body style="text-align: center; padding: 0; border: 0; margin: 0">
+    <canvas
+      id="unity-canvas"
+      width=600
+      height=960
+      tabindex="-1"
+      style="width: 600px; height: 960px; background: #231F20"
+    ></canvas>
+    <script src="Build/Riyadh Air.loader.js"></script>
+    <script>
+      var startTime = new Date().getTime();
+      var MyGameInstance = null;
+      var MaxProgress = -1;
+
+      if (/iPhone|iPad|iPod|Android/i.test(navigator.userAgent)) {
+        var meta = document.createElement("meta");
+        meta.name = "viewport";
+        meta.content =
+          "width=device-width, height=device-height, initial-scale=1.0, user-scalable=no, shrink-to-fit=yes";
+        document.getElementsByTagName("head")[0].appendChild(meta);
+
+        var mobileCanvas = document.querySelector("#unity-canvas");
+        mobileCanvas.style.width = "100%";
+        mobileCanvas.style.height = "100%";
+        mobileCanvas.style.position = "fixed";
+        document.body.style.textAlign = "left";
+      }
+
+      InitializeLoadingEvent();
+
+      var canvas = document.querySelector("#unity-canvas");
+      var config = {
+        arguments: [],
+        dataUrl: "Build/Riyadh Air.data",
+        frameworkUrl: "Build/Riyadh Air.framework.js",
+        codeUrl: "Build/Riyadh Air.wasm",
+        streamingAssetsUrl: "StreamingAssets",
+        companyName: "DefaultCompany",
+        productName: "Riyadh Air",
+        productVersion: "1.0",
+      };
+
+      createUnityInstance(canvas, config, (progress) => {
+        if (progress > MaxProgress) {
+          MaxProgress = progress;
+          BroadcastGameLoadingEvent(progress);
+        }
+      })
+        .then((unityInstance) => {
+          MyGameInstance = unityInstance;
+          CalculateLoadTime(startTime);
+          console.log("Unity ready — starting Barrq test payload");
+          // Comment the next line for full native Barrq integration (host calls doInitiate).
+          doStartTest();
+          console.log(MyGameInstance);
+        })
+        .catch((err) => {
+          console.error("createUnityInstance failed", err);
+        });
+
+      function InitializeLoadingEvent() {
+        addEventListener("onGameLoading", (e) => {
+          try {
+            if (
+              window.webkit &&
+              window.webkit.messageHandlers &&
+              window.webkit.messageHandlers.onGameLoading
+            ) {
+              console.log("IOS Interceptor:: onGameLoading");
+              window.webkit.messageHandlers.onGameLoading.postMessage(e.detail);
+            } else if (typeof BarraqAndroidBridge !== "undefined") {
+              console.log("BarraqAndroidBridge:: onGameLoading");
+              BarraqAndroidBridge.onGameLoading(JSON.stringify(e.detail));
+            } else {
+              console.log("non-native environment:: onGameLoading");
+            }
+          } catch (err) {
+            console.warn("error while trying to run nativley - ", err.message);
+            console.log("non-native environment::onGameLoading");
+          }
+        });
+      }
+
+      function BroadcastGameLoadingEvent(progress) {
+        console.log(
+          "HTML -> Native  onGameLoading Event, Progress = " + progress
+        );
+        const event = new CustomEvent("onGameLoading", {
+          detail: {
+            message: "Game Load Percentage: " + progress,
+            data: {
+              load_progress: progress,
+            },
+          },
+        });
+        dispatchEvent(event);
+      }
+
+      function CalculateLoadTime(bootTimestamp) {
+        var loadedTimestamp = new Date().getTime();
+        var difference = loadedTimestamp - bootTimestamp;
+        var minutes = parseInt(difference / 1000 / 60);
+        var seconds = parseInt((difference / 1000) % 60);
+        console.log(
+          "Game Loadtime = " + difference + " ms",
+          "which is equlivlent to " + minutes + ":" + seconds + " minutes"
+        );
+      }
+
+      function doInitiate(encodedData) {
+        console.log("Calling DoInitiate From Native");
+        if (MyGameInstance) {
+          MyGameInstance.SendMessage("JS", "DoInitiate", encodedData);
+        } else {
+          console.warn("doInitiate: MyGameInstance is null");
+        }
+      }
+
+      function doClose() {
+        if (MyGameInstance) {
+          MyGameInstance.SendMessage("JS", "DoQuit");
+        }
+      }
+
+      function doPause() {
+        if (MyGameInstance) {
+          MyGameInstance.SendMessage("JS", "DoPause");
+        }
+      }
+
+      function doResume() {
+        if (MyGameInstance) {
+          MyGameInstance.SendMessage("JS", "DoResume");
+        }
+      }
+
+      function doConnectionLost() {
+        if (MyGameInstance) {
+          MyGameInstance.SendMessage("JS", "DoConnectionLost");
+        }
+      }
+
+      function doConnectionRegained() {
+        if (MyGameInstance) {
+          MyGameInstance.SendMessage("JS", "DoConnectionRegained");
+        }
+      }
+
+      function doExitGame() {
+        if (MyGameInstance) {
+          MyGameInstance.SendMessage("JS", "DoExitGame");
+        }
+      }
+
+      function doStartTest() {
+        var encodedData =
+          "ewogICJnYW1lX2RhdGEiOiB7CiAgICAiZ2FtZV90eXBlIjogIkZFQVRVUkVEIiwKICAgICJnYW1lX2NvbnRyb2xfc3lzdGVtX3R5cGUiOiAiQ0FCSU5fUlVOTkVSIiwKICAgICJnYW1lX2NvbnRyb2xfc3lzdGVtIjogewogICAgICAicmV3YXJkX2N1cnJlbmN5IjogIlNGRUVSX1BPSU5UUyIsCiAgICAgICJtYXhfcmV3YXJkX2ZhaWxfc2FmZSI6IDUwMDAsCiAgICAgICJyZWNvbm5lY3Rpb25fd2luZG93X3NlY29uZHMiOiAzMCwKICAgICAgInJlc3VtcHRpb25fd2luZG93X3NlY29uZHMiOiAxMCwKICAgICAgImxhbmVfY291bnQiOiAzLAogICAgICAiY29pbl92YWx1ZXMiOiBbMTAsIDI1LCA1MF0sCiAgICAgICJwaGFzZXMiOiBbCiAgICAgICAgewogICAgICAgICAgInRpbWVfaW50ZXJ2YWxfc2Vjb25kcyI6IDMwLAogICAgICAgICAgInJld2FyZF9wYXlsb2FkIjogNTAwLAogICAgICAgICAgImNvaW5fc3Bhd25fcmF0ZSI6IFswLjYsIDAuMywgMC4xXSwKICAgICAgICAgICJjYWJpbl9zY3JvbGxfc3BlZWQiOiA4LAogICAgICAgICAgIm9ic3RhY2xlX3NwYXduX3JhdGUiOiAxLjQsCiAgICAgICAgICAibWF4X2Jsb2NrZWRfbGFuZXMiOiAxLAogICAgICAgICAgIm9ic3RhY2xlX2NvbXBvc2l0aW9uIjogWzAuNSwgMC41LCAwLCAwXQogICAgICAgIH0sCiAgICAgICAgewogICAgICAgICAgInRpbWVfaW50ZXJ2YWxfc2Vjb25kcyI6IDMwLAogICAgICAgICAgInJld2FyZF9wYXlsb2FkIjogNzUwLAogICAgICAgICAgImNvaW5fc3Bhd25fcmF0ZSI6IFswLjUsIDAuMzUsIDAuMTVdLAogICAgICAgICAgImNhYmluX3Njcm9sbF9zcGVlZCI6IDExLAogICAgICAgICAgIm9ic3RhY2xlX3NwYXduX3JhdGUiOiAxLjEsCiAgICAgICAgICAibWF4X2Jsb2NrZWRfbGFuZXMiOiAyLAogICAgICAgICAgIm9ic3RhY2xlX2NvbXBvc2l0aW9uIjogWzAuMzUsIDAuMjUsIDAuMjUsIDAuMTVdCiAgICAgICAgfSwKICAgICAgICB7CiAgICAgICAgICAidGltZV9pbnRlcnZhbF9zZWNvbmRzIjogMzAsCiAgICAgICAgICAicmV3YXJkX3BheWxvYWQiOiAxMDAwLAogICAgICAgICAgImNvaW5fc3Bhd25fcmF0ZSI6IFswLjQsIDAuMzUsIDAuMjVdLAogICAgICAgICAgImNhYmluX3Njcm9sbF9zcGVlZCI6IDE0LAogICAgICAgICAgIm9ic3RhY2xlX3NwYXduX3JhdGUiOiAwLjg1LAogICAgICAgICAgIm1heF9ibG9ja2VkX2xhbmVzIjogMiwKICAgICAgICAgICJvYnN0YWNsZV9jb21wb3NpdGlvbiI6IFswLjI1LCAwLjIsIDAuMywgMC4yNV0KICAgICAgICB9LAogICAgICAgIHsKICAgICAgICAgICJ0aW1lX2ludGVydmFsX3NlY29uZHMiOiAzMCwKICAgICAgICAgICJyZXdhcmRfcGF5bG9hZCI6IDEyNTAsCiAgICAgICAgICAiY29pbl9zcGF3bl9yYXRlIjogWzAuMywgMC4zNSwgMC4zNV0sCiAgICAgICAgICAiY2FiaW5fc2Nyb2xsX3NwZWVkIjogMTcsCiAgICAgICAgICAib2JzdGFjbGVfc3Bhd25fcmF0ZSI6IDAuNjUsCiAgICAgICAgICAibWF4X2Jsb2NrZWRfbGFuZXMiOiAyLAogICAgICAgICAgIm9ic3RhY2xlX2NvbXBvc2l0aW9uIjogWzAuMiwgMC4xNSwgMC4zLCAwLjM1XQogICAgICAgIH0KICAgICAgXQogICAgfQogIH0sCiAgInVzZXJfZGF0YSI6IHsKICAgICJ1c2VyX3Byb3BlcnRpZXMiOiB7CiAgICAgICJoaWdoZXN0X3dpbm5pbmdfYW1vdW50IjogMTIwMCwKICAgICAgImF0dGVtcHRfdHlwZSI6ICJSRUFMIgogICAgfQogIH0KfQ==";
+        if (MyGameInstance) {
+          MyGameInstance.SendMessage("JS", "DoInitiate", encodedData);
+        } else {
+          console.warn("doStartTest: MyGameInstance is null");
+        }
+      }
+    </script>
+  </body>
+</html>
